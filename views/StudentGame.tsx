@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useGameStore } from '../services/gameStore';
-import { Button } from '../components/Button';
 import { BlindBox } from '../components/BlindBox';
 import { RevealedCard } from '../components/RevealedCard';
 import { StockData } from '../types';
@@ -9,6 +8,7 @@ export const StudentGame: React.FC = () => {
   const [analystName, setAnalystName] = useState('');
   const [hasEntered, setHasEntered] = useState(false);
   const [viewingStock, setViewingStock] = useState<StockData | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
   
   const { gameState, stockData, loading, claimBox } = useGameStore('STUDENT');
 
@@ -19,57 +19,35 @@ export const StudentGame: React.FC = () => {
     }
   };
 
-  // Check if current user already has a box
   const myBoxId = Object.keys(gameState.assignments).find(
     key => gameState.assignments[key] === analystName
   );
   const hasClaimedAny = !!myBoxId;
 
-  // Auto-open the card if I have one and haven't seen it in this session (optional, but good UX)
-  // Or simply allow clicking to view. 
-  
-  const handleBoxClick = (stock: StockData) => {
+  const handleBoxClick = async (stock: StockData) => {
       const owner = gameState.assignments[stock.id];
       const isMine = owner === analystName;
 
-      // Case 1: Already revealed (By me or others)
       if (owner) {
-          // Only show full detail if it's MINE. 
-          // If viewing others' boxes is allowed in full screen, remove the `isMine` check.
-          // Requirement says "Show student what THEY picked", usually implying privacy or focus on own result.
-          // But to make it interactive, let's allow viewing my own box in full screen anytime.
-          if (isMine) {
-              setViewingStock(stock);
-          }
+          if (isMine) setViewingStock(stock);
           return;
       }
 
-      // Case 2: Game not running
-      if (gameState.status !== 'RUNNING') return;
+      if (gameState.status !== 'RUNNING' || hasClaimedAny || isProcessing) return;
 
-      // Case 3: I already have a box, can't pick another
-      if (hasClaimedAny) {
-          alert('您已經擁有一家公司了！每人限搶一盒。');
-          return;
-      }
-
-      // Case 4: Try to claim
-      const success = claimBox(stock.id, analystName);
-      if (success) {
-          // Immediate reward: Show full screen card
-          setViewingStock(stock);
-      } else {
-        // Error handling
-        const freshAssignments = JSON.parse(localStorage.getItem('stock_game_state') || '{}').assignments || {};
-        if (freshAssignments[stock.id]) {
-           alert('哎呀！慢了一步，這個盲盒剛被別人搶走了！');
+      setIsProcessing(true);
+      try {
+        const success = await claimBox(stock.id, analystName);
+        if (success) {
+            setViewingStock(stock);
         } else {
-           alert('搶奪失敗，請稍後再試。');
+            alert('搶奪失敗！可能已被搶走或您已擁有一家公司。');
         }
+      } finally {
+        setIsProcessing(false);
       }
   };
 
-  // Login Screen
   if (!hasEntered) {
     return (
       <div className="flex items-center justify-center min-h-screen p-4 bg-slate-900">
@@ -87,33 +65,35 @@ export const StudentGame: React.FC = () => {
                 className="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
               />
             </div>
-            <Button type="submit" className="w-full text-lg">
+            <button type="submit" className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold shadow-lg transition-all active:scale-95">
               進入系統
-            </Button>
+            </button>
           </form>
         </div>
       </div>
     );
   }
 
-  // Loading
-  if (loading) {
-     return <div className="flex items-center justify-center h-screen bg-slate-900 text-white">同步資料中...</div>;
+  if (loading && stockData.length === 0) {
+     return (
+        <div className="flex flex-col items-center justify-center h-screen bg-slate-900 text-white">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-yellow-500 mb-4"></div>
+            <p>連線至雲端教室中...</p>
+        </div>
+     );
   }
 
-  // Waiting Screen
   if (gameState.status === 'IDLE') {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-4 text-center bg-slate-900">
         <div className="text-6xl mb-6 animate-bounce">⏳</div>
         <h2 className="text-3xl font-bold text-white mb-2">等待老師開始遊戲</h2>
         <p className="text-slate-400 text-lg">你好，分析師 <span className="text-blue-400 font-bold">{analystName}</span></p>
-        <p className="text-slate-500 mt-8">請留意大螢幕，遊戲即將開始...</p>
+        <p className="text-slate-500 mt-8">請留意老師電腦畫面，遊戲即將開始...</p>
       </div>
     );
   }
 
-  // Game Grid
   return (
     <div className="min-h-screen bg-slate-900 pb-12">
       <div className="sticky top-0 z-40 bg-slate-900/95 backdrop-blur-md py-3 px-4 border-b border-slate-700 flex justify-between items-center shadow-lg">
@@ -121,10 +101,11 @@ export const StudentGame: React.FC = () => {
            <h2 className="text-lg font-bold text-white">
             {gameState.status === 'RUNNING' ? '🔥 搶奪中！' : '🏁 遊戲結束'}
            </h2>
-           <p className="text-xs text-slate-400">
-             分析師: {analystName} 
-           </p>
+           <p className="text-xs text-slate-400">分析師: {analystName}</p>
         </div>
+        
+        {isProcessing && <div className="text-xs text-yellow-500 animate-pulse font-bold">同步中...</div>}
+
         {hasClaimedAny ? (
             <button 
                 onClick={() => {
@@ -143,40 +124,33 @@ export const StudentGame: React.FC = () => {
       </div>
 
       <div className="container mx-auto px-2 py-4 max-w-7xl">
-        {/* Mobile-optimized Grid: 2 columns with small gaps */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
             {stockData.map(stock => {
-            const owner = gameState.assignments[stock.id];
-            const isRevealed = !!owner;
-            const isMine = owner === analystName;
-            
-            // Interaction logic:
-            // 1. If revealed & mine -> Clickable (View Card)
-            // 2. If revealed & not mine -> Disabled (Grayed out)
-            // 3. If not revealed & game running & I haven't claimed -> Clickable (Claim)
-            // 4. If not revealed & I have claimed -> Disabled
-            
-            let isDisabled = false;
-            if (isRevealed && !isMine) isDisabled = true;
-            if (!isRevealed && hasClaimedAny) isDisabled = true;
-            if (gameState.status !== 'RUNNING' && !isRevealed) isDisabled = true;
+                const owner = gameState.assignments[stock.id];
+                const isRevealed = !!owner;
+                const isMine = owner === analystName;
+                
+                let isDisabled = false;
+                if (isRevealed && !isMine) isDisabled = true;
+                if (!isRevealed && hasClaimedAny) isDisabled = true;
+                if (gameState.status !== 'RUNNING' && !isRevealed) isDisabled = true;
+                if (isProcessing) isDisabled = true;
 
-            return (
-                <BlindBox
-                key={stock.id}
-                stock={stock}
-                isRevealed={isRevealed}
-                ownerName={owner}
-                isMyBox={isMine}
-                onOpen={() => handleBoxClick(stock)}
-                disabled={isDisabled}
-                />
-            );
+                return (
+                    <BlindBox
+                        key={stock.id}
+                        stock={stock}
+                        isRevealed={isRevealed}
+                        ownerName={owner}
+                        isMyBox={isMine}
+                        onOpen={() => handleBoxClick(stock)}
+                        disabled={isDisabled}
+                    />
+                );
             })}
         </div>
       </div>
 
-      {/* Full Screen Card Overlay */}
       {viewingStock && (
           <RevealedCard 
             stock={viewingStock} 
