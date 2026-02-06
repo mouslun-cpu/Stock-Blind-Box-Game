@@ -4,7 +4,7 @@ import { Button } from '../components/Button';
 import { BlindBox } from '../components/BlindBox';
 
 export const TeacherDashboard: React.FC = () => {
-  const { gameState, stockData, loading, startGame, endGame, resetGame } = useGameStore('TEACHER');
+  const { gameState, stockData, loading, startGame, endGame, resetGame, initializeGame } = useGameStore('TEACHER');
 
   const totalBoxes = stockData.length;
   const openedBoxes = Object.keys(gameState.assignments).length;
@@ -13,7 +13,7 @@ export const TeacherDashboard: React.FC = () => {
   const handleExport = () => {
     // 1. Prepare headers
     const headers = ['股票代碼', '分析師'];
-    
+
     // 2. Map assignments to symbols and sort them alphabetically by symbol
     // This ensures the list is orderly and not "jumping around"
     const rows = stockData
@@ -54,6 +54,21 @@ export const TeacherDashboard: React.FC = () => {
     );
   }
 
+  // Handle empty database / first run
+  if (!stockData || stockData.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-slate-900 text-white p-4">
+        <div className="text-center max-w-lg">
+          <h2 className="text-3xl font-bold mb-4">歡迎使用盲盒股票系統</h2>
+          <p className="text-slate-400 mb-8">偵測到雲端資料庫為空，請點擊下方按鈕進行初始化。</p>
+          <Button onClick={initializeGame} variant="primary" className="text-lg px-8 py-3">
+            🛠️ 初始化資料庫
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto px-4 py-12 max-w-7xl">
       {/* Header / Control Panel */}
@@ -62,13 +77,12 @@ export const TeacherDashboard: React.FC = () => {
           <div>
             <h1 className="text-3xl font-bold text-white flex items-center gap-3">
               👨‍🏫 老師控制台
-              <span className={`text-sm px-3 py-1 rounded-full border ${
-                gameState.status === 'RUNNING' ? 'border-green-500 text-green-400 bg-green-500/10' : 
-                gameState.status === 'ENDED' ? 'border-red-500 text-red-400 bg-red-500/10' : 
-                'border-yellow-500 text-yellow-400 bg-yellow-500/10'
-              }`}>
-                {gameState.status === 'IDLE' ? '準備中' : 
-                 gameState.status === 'RUNNING' ? '進行中' : '已結束'}
+              <span className={`text-sm px-3 py-1 rounded-full border ${gameState.status === 'RUNNING' ? 'border-green-500 text-green-400 bg-green-500/10' :
+                  gameState.status === 'ENDED' ? 'border-red-500 text-red-400 bg-red-500/10' :
+                    'border-yellow-500 text-yellow-400 bg-yellow-500/10'
+                }`}>
+                {gameState.status === 'IDLE' ? '準備中' :
+                  gameState.status === 'RUNNING' ? '進行中' : '已結束'}
               </span>
             </h1>
             <p className="text-slate-400 mt-1">
@@ -82,7 +96,7 @@ export const TeacherDashboard: React.FC = () => {
                 🚀 開始遊戲
               </Button>
             )}
-            
+
             {gameState.status === 'RUNNING' && (
               <Button onClick={endGame} variant="danger" className="text-lg animate-pulse">
                 🛑 結束搶奪
@@ -101,10 +115,10 @@ export const TeacherDashboard: React.FC = () => {
             )}
           </div>
         </div>
-        
+
         {/* Progress Bar */}
         <div className="w-full bg-slate-800 h-2 rounded-full mt-4 overflow-hidden">
-          <div 
+          <div
             className="bg-yellow-500 h-full transition-all duration-500 ease-out shadow-[0_0_10px_rgba(234,179,8,0.5)]"
             style={{ width: `${progress}%` }}
           />
@@ -116,7 +130,7 @@ export const TeacherDashboard: React.FC = () => {
         {stockData.map(stock => {
           const owner = gameState.assignments[stock.id];
           const isRevealed = !!owner;
-          
+
           return (
             <BlindBox
               key={stock.id}
@@ -124,7 +138,7 @@ export const TeacherDashboard: React.FC = () => {
               isRevealed={isRevealed}
               ownerName={owner}
               isMyBox={false}
-              onOpen={() => {}} // Teacher doesn't open boxes interactively
+              onOpen={() => { }} // Teacher doesn't open boxes interactively
               disabled={true} // Always disabled interaction for teacher, just viewing
             />
           );
