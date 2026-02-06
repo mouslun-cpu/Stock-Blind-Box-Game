@@ -35,7 +35,7 @@ const App: React.FC = () => {
             盲盒抽股票
           </h1>
           <p className="text-slate-400 mb-8">課堂即時互動系統</p>
-          
+
           <div className="space-y-4">
             <button
               onClick={handleTeacherClick}
@@ -57,9 +57,9 @@ const App: React.FC = () => {
               </div>
             </button>
           </div>
-          
+
           <p className="mt-8 text-xs text-slate-500">
-            注意：本系統使用瀏覽器本地同步技術。請在同一瀏覽器的不同分頁中分別開啟老師端與學生端進行模擬。
+            © 2026 Dr. Huang Wei Lun
           </p>
         </div>
 
@@ -80,16 +80,16 @@ const App: React.FC = () => {
                   className="w-full px-4 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white mb-2 focus:ring-2 focus:ring-indigo-500 outline-none"
                 />
                 {error && <p className="text-red-400 text-sm mb-3">{error}</p>}
-                
+
                 <div className="flex gap-2 mt-4">
-                  <Button 
-                    type="button" 
-                    variant="secondary" 
+                  <Button
+                    type="button"
+                    variant="secondary"
                     className="flex-1"
                     onClick={() => {
-                        setShowPasswordModal(false);
-                        setError('');
-                        setPassword('');
+                      setShowPasswordModal(false);
+                      setError('');
+                      setPassword('');
                     }}
                   >
                     取消
@@ -108,14 +108,14 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100">
-       <div className="fixed top-4 left-4 z-50">
-        <button 
-            onClick={() => setRole(null)}
-            className="text-xs bg-slate-800 text-slate-400 px-3 py-1 rounded-full border border-slate-700 hover:bg-slate-700 transition-colors"
+      <div className="fixed top-4 left-4 z-50">
+        <button
+          onClick={() => setRole(null)}
+          className="text-xs bg-slate-800 text-slate-400 px-3 py-1 rounded-full border border-slate-700 hover:bg-slate-700 transition-colors"
         >
-            ← 返回首頁
+          ← 返回首頁
         </button>
-       </div>
+      </div>
       {role === 'TEACHER' ? <TeacherDashboard /> : <StudentGame />}
     </div>
   );
